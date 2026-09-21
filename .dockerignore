@@ -1,0 +1,9 @@
+.git
+.gitignore
+data
+test
+*.db
+*.db-shm
+*.db-wal
+README.md
+DEPLOYMENT.md

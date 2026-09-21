@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MyXpend - an auditable personal finance tracker.">
+  <title>MyXpend</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <main id="auth-view" class="auth-shell">
+    <section class="auth-copy">
+      <a class="brand brand-large" href="/" aria-label="MyXpend home">
+        <span class="brand-mark" aria-hidden="true">₹</span>
+        <span>MyXpend</span>
+      </a>
+      <p class="eyebrow">PERSONAL FINANCE, MADE EXPLAINABLE</p>
+      <h1>Know where your money went—and why.</h1>
+      <p class="hero-copy">Track bank and cash transactions in one reliable ledger. Set a monthly limit, find spending patterns, and export your own data.</p>
+      <ul class="feature-list">
+        <li><span>✓</span> Balances derived from real transactions</li>
+        <li><span>✓</span> Private data for every account</li>
+        <li><span>✓</span> Clear monthly insights without financial jargon</li>
+      </ul>
+    </section>
+
+    <section class="auth-card" aria-labelledby="auth-title">
+      <div class="auth-tabs" role="tablist" aria-label="Authentication">
+        <button class="auth-tab active" type="button" data-auth-tab="login" role="tab" aria-selected="true">Sign in</button>
+        <button class="auth-tab" type="button" data-auth-tab="register" role="tab" aria-selected="false">Create account</button>
+      </div>
+      <form id="login-form" class="auth-form">
+        <div>
+          <p class="eyebrow">WELCOME BACK</p>
+          <h2 id="auth-title">Sign in to MyXpend</h2>
+          <p class="muted">Continue to your personal dashboard.</p>
+        </div>
+        <label>Email<input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" required placeholder="Your password"></label>
+        <p class="form-error" data-form-error></p>
+        <button class="button primary full" type="submit">Sign in</button>
+      </form>
+      <form id="register-form" class="auth-form hidden">
+        <div>
+          <p class="eyebrow">GET STARTED</p>
+          <h2>Create your account</h2>
+          <p class="muted">Bank and Cash accounts are created automatically.</p>
+        </div>
+        <label>Name<input name="name" autocomplete="name" required minlength="2" maxlength="60" placeholder="Your name"></label>
+        <label>Email<input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
+        <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="8+ characters, letter and number"></label>
+        <p class="form-error" data-form-error></p>
+        <button class="button primary full" type="submit">Create account</button>
+      </form>
+    </section>
+  </main>
+
+  <div id="app-view" class="app hidden">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="MyXpend dashboard"><span class="brand-mark" aria-hidden="true">₹</span><span>MyXpend</span></a>
+      <nav class="top-actions" aria-label="Account actions">
+        <button id="theme-toggle" class="icon-button" type="button" aria-label="Switch theme">☼</button>
+        <button id="logout-button" class="button ghost" type="button">Sign out</button>
+      </nav>
+    </header>
+
+    <main class="dashboard">
+      <section class="welcome-row">
+        <div><p class="eyebrow">YOUR MONEY OVERVIEW</p><h1>Good to see you, <span id="user-name">there</span>.</h1><p class="muted">Every balance below is calculated from your transaction history.</p></div>
+        <div class="button-row">
+          <button class="button secondary" type="button" data-open-transaction="income">+ Add money</button>
+          <button class="button secondary" type="button" data-open-transaction="transfer">⇄ Transfer</button>
+          <button class="button primary" type="button" data-open-transaction="expense">− Add expense</button>
+        </div>
+      </section>
+
+      <section id="account-cards" class="account-grid" aria-label="Account balances"></section>
+
+      <section id="summary-cards" class="summary-grid" aria-label="Expense summary"></section>
+
+      <section class="content-grid">
+        <article class="panel transactions-panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">LEDGER</p><h2>Transactions</h2></div>
+            <a class="button ghost small" href="/api/export.csv">Export CSV</a>
+          </div>
+          <div class="filters">
+            <label class="search-field"><span class="sr-only">Search transactions</span><input id="search-input" type="search" placeholder="Search description or notes"></label>
+            <label><span class="sr-only">Filter by type</span><select id="kind-filter"><option value="">All types</option><option value="expense">Expenses</option><option value="income">Income</option><option value="transfer">Transfers</option></select></label>
+            <label><span class="sr-only">Filter by category</span><select id="category-filter"><option value="">All categories</option></select></label>
+          </div>
+          <div id="transaction-list" class="transaction-list"></div>
+          <p id="empty-transactions" class="empty hidden">No transactions match these filters.</p>
+        </article>
+
+        <aside class="side-column">
+          <article class="panel budget-panel">
+            <div class="panel-heading"><div><p class="eyebrow">MONTHLY PLAN</p><h2>Budget</h2></div><button id="budget-button" class="button ghost small" type="button">Set budget</button></div>
+            <div class="budget-values"><strong id="budget-spent">₹0</strong><span id="budget-limit">of ₹0</span></div>
+            <div class="progress" aria-label="Monthly budget used"><span id="budget-progress"></span></div>
+            <p id="budget-caption" class="muted small-text">Set a limit to track your monthly progress.</p>
+          </article>
+          <article class="panel">
+            <div class="panel-heading"><div><p class="eyebrow">PATTERNS</p><h2>Spending by category</h2></div></div>
+            <div id="category-chart" class="category-chart"></div>
+          </article>
+          <article class="panel insight-panel">
+            <div class="panel-heading"><div><p class="eyebrow">RULE-BASED INSIGHTS</p><h2>What stands out</h2></div></div>
+            <ul id="insight-list" class="insight-list"></ul>
+          </article>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="transaction-dialog">
+    <form id="transaction-form" class="dialog-form">
+      <div class="dialog-heading"><div><p class="eyebrow" id="transaction-eyebrow">NEW TRANSACTION</p><h2 id="transaction-title">Add expense</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="Close dialog">×</button></div>
+      <input name="kind" type="hidden" value="expense">
+      <div class="field-grid">
+        <label class="wide">Description<input name="description" required minlength="2" maxlength="80" placeholder="e.g. Weekly groceries"></label>
+        <label>Amount (₹)<input name="amount" type="number" min="0.01" max="100000000" step="0.01" required placeholder="0.00"></label>
+        <label>Date<input name="transactionDate" type="date" required></label>
+        <label>Category<select name="category" required></select></label>
+        <label>From / account<select name="accountId" required></select></label>
+        <label id="target-account-field" class="hidden">Destination<select name="targetAccountId"></select></label>
+        <label class="wide">Notes <span class="muted">(optional)</span><textarea name="notes" maxlength="300" rows="3" placeholder="Anything useful for your future self"></textarea></label>
+      </div>
+      <p class="form-error" data-form-error></p>
+      <div class="dialog-actions"><button class="button ghost" type="button" data-close-dialog>Cancel</button><button id="save-transaction" class="button primary" type="button">Save transaction</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="budget-dialog">
+    <form id="budget-form" class="dialog-form compact">
+      <div class="dialog-heading"><div><p class="eyebrow">MONTHLY PLAN</p><h2>Set your budget</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="Close dialog">×</button></div>
+      <label>Monthly spending limit (₹)<input name="amount" type="number" min="0" max="100000000" step="0.01" required placeholder="15000"></label>
+      <p class="muted small-text">Enter zero to remove the limit. This does not block transactions.</p>
+      <p class="form-error" data-form-error></p>
+      <div class="dialog-actions"><button class="button ghost" type="button" data-close-dialog>Cancel</button><button id="save-budget" class="button primary" type="button">Save budget</button></div>
+    </form>
+  </dialog>
+
+  <script src="/app.js?v=3" defer></script>
+</body>
+</html>

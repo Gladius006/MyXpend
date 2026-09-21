@@ -1,0 +1,14 @@
+{
+  "name": "myxpend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An auditable personal finance tracker built with Node.js and SQLite.",
+  "scripts": {
+    "start": "node server/app.js",
+    "dev": "node --watch server/app.js",
+    "test": "node --test --test-isolation=none"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

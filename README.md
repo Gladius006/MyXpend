@@ -1,5 +1,7 @@
 # MyXpend
 
+**Live app:** [myxpend-production.up.railway.app](https://myxpend-production.up.railway.app/)
+
 MyXpend is a personal finance tracker built around an auditable transaction ledger. Bank and cash balances are calculated from income, expenses, and transfers instead of being stored as unrelated numbers.
 
 This repository is an independent rebuild of the original Base44 prototype. It is designed to be understandable in a technical interview: the application uses a small REST API, a relational schema, server-side validation, password hashing, session cookies, user-scoped queries, automated tests, and a responsive frontend.

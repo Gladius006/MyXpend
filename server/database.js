@@ -170,7 +170,7 @@ class MyXpendDatabase {
     `).get(id, userId);
   }
 
-  listTransactions(userId, { kind = '', category = '', search = '', from = '', to = '' } = {}) {
+  listTransactions(userId, { kind = '', category = '', search = '', from = '', to = '', limit = 500 } = {}) {
     const clauses = ['t.user_id = ?'];
     const params = [userId];
     if (kind) { clauses.push('t.kind = ?'); params.push(kind); }
@@ -181,6 +181,7 @@ class MyXpendDatabase {
     }
     if (from) { clauses.push('t.transaction_date >= ?'); params.push(from); }
     if (to) { clauses.push('t.transaction_date <= ?'); params.push(to); }
+    if (limit !== null) params.push(limit);
     return this.db.prepare(`
       SELECT t.*, a.name AS account_name, ta.name AS target_account_name
       FROM transactions t
@@ -188,7 +189,43 @@ class MyXpendDatabase {
       LEFT JOIN accounts ta ON ta.id = t.target_account_id
       WHERE ${clauses.join(' AND ')}
       ORDER BY t.transaction_date DESC, t.id DESC
-      LIMIT 500
+      ${limit === null ? '' : 'LIMIT ?'}
+    `).all(...params);
+  }
+
+  expenseWhere(userId, { from = '', to = '' } = {}) {
+    const clauses = ["user_id = ?", "kind = 'expense'"];
+    const params = [userId];
+    if (from) { clauses.push('transaction_date >= ?'); params.push(from); }
+    if (to) { clauses.push('transaction_date <= ?'); params.push(to); }
+    return { where: clauses.join(' AND '), params };
+  }
+
+  expenseSummary(userId, range = {}) {
+    const { where, params } = this.expenseWhere(userId, range);
+    return this.db.prepare(`
+      SELECT COALESCE(SUM(amount_cents), 0) AS amount_cents, COUNT(*) AS expense_count,
+        MIN(transaction_date) AS first_date, MAX(transaction_date) AS last_date
+      FROM transactions WHERE ${where}
+    `).get(...params);
+  }
+
+  expenseSeries(userId, period, range = {}) {
+    const { where, params } = this.expenseWhere(userId, range);
+    const group = period === 'day' ? 'transaction_date' : 'substr(transaction_date, 1, 7)';
+    return this.db.prepare(`
+      SELECT ${group} AS period, SUM(amount_cents) AS amount_cents, COUNT(*) AS expense_count
+      FROM transactions WHERE ${where}
+      GROUP BY ${group} ORDER BY period
+    `).all(...params);
+  }
+
+  expenseCategories(userId, range = {}) {
+    const { where, params } = this.expenseWhere(userId, range);
+    return this.db.prepare(`
+      SELECT category, SUM(amount_cents) AS amount_cents, COUNT(*) AS expense_count
+      FROM transactions WHERE ${where}
+      GROUP BY category ORDER BY amount_cents DESC, category
     `).all(...params);
   }
 

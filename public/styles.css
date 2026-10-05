@@ -138,6 +138,62 @@ dialog::backdrop { background: rgba(5, 19, 13, .62); backdrop-filter: blur(5px);
 .toast { position: fixed; z-index: 100; left: 50%; bottom: 1.3rem; transform: translate(-50%, 150%); opacity: 0; padding: .75rem 1rem; color: #fff; background: #183229; border-radius: 10px; box-shadow: var(--shadow); transition: .25s; }
 .toast.show { transform: translate(-50%, 0); opacity: 1; }
 
+.view-nav { display: flex; gap: .35rem; width: fit-content; padding: .3rem; margin-bottom: 2rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; }
+.view-tab { border: 0; padding: .7rem 1.35rem; border-radius: 10px; color: var(--muted); background: transparent; font-weight: 800; cursor: pointer; }
+.view-tab.active { color: var(--brand-dark); background: var(--surface); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.view-tab:focus-visible, .history-month-card:focus-visible, .chart-data summary:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
+.history-heading { align-items: center; }
+.history-heading h1 { font-size: clamp(2rem, 4vw, 3.3rem); }
+.history-heading p { max-width: 760px; line-height: 1.6; }
+.history-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; scroll-margin-top: 90px; }
+.history-controls label:first-child { flex: 1 1 240px; }
+.history-controls label { flex: 0 1 210px; }
+.history-feedback { color: var(--muted); }
+.history-feedback:empty { display: none; }
+.history-feedback.error { color: var(--danger); }
+.history-analysis-grid { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(270px, .75fr); gap: 1rem; align-items: start; margin-bottom: 1rem; }
+.history-chart-panel { min-width: 0; }
+.history-chart-panel .panel-heading { margin-bottom: .6rem; }
+.history-chart-panel > p { line-height: 1.6; }
+.chart-scroll, .table-scroll { overflow-x: auto; }
+.chart-scroll svg { display: block; width: 100%; min-width: 680px; height: auto; }
+.chart-gridline { stroke: var(--line); stroke-dasharray: 4 4; }
+.chart-axis { fill: var(--muted); font-size: 13px; font-family: inherit; }
+.chart-x-label { font-size: 12px; }
+.chart-bar { fill: var(--brand); }
+.chart-line { fill: none; stroke: var(--brand); stroke-width: 3; stroke-linejoin: round; }
+.chart-point { fill: var(--surface); stroke: var(--brand); stroke-width: 3; }
+.chart-hit-area { fill: transparent; }
+.chart-scroll a:hover .chart-bar, .chart-scroll a:focus .chart-bar { fill: var(--purple); }
+.chart-scroll a:hover .chart-point, .chart-scroll a:focus .chart-point { fill: var(--purple); }
+.chart-scroll a { cursor: pointer; }
+.chart-empty { min-height: 240px; display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 1rem; }
+.chart-empty > span { font-size: 2.5rem; color: var(--brand); padding-bottom: .8rem; }
+.chart-empty p { margin-bottom: .5rem; }
+.chart-data { border-top: 1px solid var(--line); margin-top: 1rem; padding-top: 1rem; font-size: .86rem; }
+.chart-data summary { color: var(--brand-dark); font-weight: 750; cursor: pointer; width: fit-content; }
+.chart-data table { width: 100%; border-collapse: collapse; margin-top: 1rem; text-align: left; }
+.chart-data th, .chart-data td { border-bottom: 1px solid var(--line); padding: .65rem .5rem; white-space: nowrap; }
+.chart-data tbody th { font-weight: 500; }
+.chart-data td { text-align: right; }
+.history-month-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+.history-month-card { display: grid; gap: .65rem; padding: 1.15rem; border: 1px solid var(--line); border-radius: 14px; text-align: left; color: var(--ink); background: var(--surface); cursor: pointer; }
+.history-month-card > span:first-child { font-size: .86rem; font-weight: 750; }
+.history-month-card strong { font-size: 1.3rem; letter-spacing: -.035em; }
+.history-month-card:hover, .history-month-card.selected { border-color: var(--brand); background: var(--brand-soft); }
+.history-month-card.selected { box-shadow: inset 0 0 0 1px var(--brand); }
+.history-categories { display: grid; gap: 1rem; }
+.history-category { display: grid; gap: .4rem; }
+.history-category > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .3rem .7rem; font-size: .84rem; }
+.history-category strong { font-size: .82rem; }
+.history-category .small-text { font-size: .76rem; }
+.history-category progress, .history-month-card progress { display: block; width: 100%; height: 7px; border: 0; border-radius: 99px; overflow: hidden; background: var(--surface-2); }
+.history-category progress::-webkit-progress-bar, .history-month-card progress::-webkit-progress-bar { background: var(--surface-2); border-radius: 99px; }
+.history-category progress::-webkit-progress-value { background: var(--purple); border-radius: 99px; }
+.history-month-card progress::-webkit-progress-value { background: var(--brand); border-radius: 99px; }
+.history-category progress::-moz-progress-bar { background: var(--purple); }
+.history-month-card progress::-moz-progress-bar { background: var(--brand); }
+
 @media (max-width: 1000px) {
   .auth-shell { grid-template-columns: 1fr; padding: 2rem 0; }
   .auth-copy { padding: 2rem; }
@@ -145,6 +201,9 @@ dialog::backdrop { background: rgba(5, 19, 13, .62); backdrop-filter: blur(5px);
   .auth-copy h1 { font-size: 3rem; }
   .feature-list { display: none; }
   .content-grid { grid-template-columns: 1fr; }
+  .history-analysis-grid { grid-template-columns: 1fr; }
+  .history-analysis-grid .side-column { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .history-month-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .account-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
@@ -161,4 +220,12 @@ dialog::backdrop { background: rgba(5, 19, 13, .62); backdrop-filter: blur(5px);
   .field-grid { grid-template-columns: 1fr; }
   .field-grid .wide { grid-column: auto; }
   .auth-card { width: min(100% - 1.2rem, 480px); }
+  .history-heading { align-items: stretch; }
+  .history-controls { padding: 1rem; }
+  .history-controls label { flex: 1 1 100%; }
+  .history-month-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .history-month-card { padding: .9rem; }
+  .history-month-card strong { font-size: 1.15rem; }
+  .history-analysis-grid .side-column { grid-template-columns: 1fr; }
+  #history-summary strong { font-size: 1.1rem; overflow-wrap: anywhere; }
 }

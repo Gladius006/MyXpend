@@ -4,6 +4,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { promisify } = require('node:util');
 const { MyXpendDatabase } = require('./database');
+const { expenseHistory, monthRange, shiftMonth } = require('./history');
 
 const scrypt = promisify(crypto.scrypt);
 const ROOT = path.resolve(__dirname, '..');
@@ -94,7 +95,9 @@ function toCents(value) {
 }
 
 function isDate(value) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 function localDateString(date = new Date()) {
@@ -106,23 +109,12 @@ function localDateString(date = new Date()) {
 
 function dashboard(db, userId) {
   const accounts = db.listAccounts(userId).map((row) => ({ ...row, balance_cents: Number(row.balance_cents) }));
-  const all = db.listTransactions(userId);
   const today = localDateString();
   const now = new Date();
   const month = today.slice(0, 7);
-  const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const previousMonth = `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}`;
-  const expenses = all.filter((item) => item.kind === 'expense');
-  const currentMonth = expenses.filter((item) => item.transaction_date.startsWith(month));
-  const previousMonthItems = expenses.filter((item) => item.transaction_date.startsWith(previousMonth));
-  const sum = (rows) => rows.reduce((total, row) => total + Number(row.amount_cents), 0);
-  const currentMonthCents = sum(currentMonth);
-  const previousMonthCents = sum(previousMonthItems);
-  const byCategory = Object.entries(currentMonth.reduce((result, item) => {
-    result[item.category] = (result[item.category] || 0) + Number(item.amount_cents);
-    return result;
-  }, {})).map(([category, amount_cents]) => ({ category, amount_cents }))
-    .sort((a, b) => b.amount_cents - a.amount_cents);
+  const currentMonthCents = Number(db.expenseSummary(userId, monthRange(month)).amount_cents);
+  const previousMonthCents = Number(db.expenseSummary(userId, monthRange(shiftMonth(month, -1))).amount_cents);
+  const byCategory = db.expenseCategories(userId, monthRange(month));
   const budget = db.getBudget(userId)?.monthly_limit_cents || 0;
   const insights = [];
   if (previousMonthCents && currentMonthCents > previousMonthCents) {
@@ -144,15 +136,15 @@ function dashboard(db, userId) {
     summary: {
       total_balance_cents: accounts.reduce((total, account) => total + account.balance_cents, 0),
       this_month_cents: currentMonthCents,
-      today_cents: sum(expenses.filter((item) => item.transaction_date === today)),
-      all_time_expense_cents: sum(expenses),
+      today_cents: Number(db.expenseSummary(userId, { from: today, to: today }).amount_cents),
+      all_time_expense_cents: Number(db.expenseSummary(userId).amount_cents),
       daily_average_cents: Math.round(currentMonthCents / Math.max(now.getDate(), 1)),
       previous_month_cents: previousMonthCents,
       monthly_budget_cents: Number(budget)
     },
     by_category: byCategory,
     insights,
-    recent_transactions: all.slice(0, 8)
+    recent_transactions: db.listTransactions(userId, { limit: 8 })
   };
 }
 
@@ -251,6 +243,18 @@ function createApp({ dbPath = DEFAULT_DB } = {}) {
         const user = requireUser(req, res, db); if (!user) return;
         return json(res, 200, dashboard(db, user.user_id));
       }
+      if (req.method === 'GET' && pathname === '/api/history') {
+        const user = requireUser(req, res, db); if (!user) return;
+        const asOf = url.searchParams.get('asOf') || localDateString();
+        const month = url.searchParams.get('month') || asOf.slice(0, 7);
+        if (!isDate(asOf) || Number(asOf.slice(0, 4)) < 2 || Number(asOf.slice(0, 4)) > 9998) {
+          return errorResponse(res, 422, 'Choose a valid history date');
+        }
+        if (!isDate(`${month}-01`) || Number(month.slice(0, 4)) < 1 || Number(month.slice(0, 4)) > 9998) {
+          return errorResponse(res, 422, 'Choose a valid month in YYYY-MM format');
+        }
+        return json(res, 200, expenseHistory(db, user.user_id, { asOf, month }));
+      }
       if (req.method === 'GET' && pathname === '/api/accounts') {
         const user = requireUser(req, res, db); if (!user) return;
         return json(res, 200, { accounts: db.listAccounts(user.user_id) });
@@ -282,7 +286,7 @@ function createApp({ dbPath = DEFAULT_DB } = {}) {
       }
       if (req.method === 'GET' && pathname === '/api/export.csv') {
         const user = requireUser(req, res, db); if (!user) return;
-        const rows = db.listTransactions(user.user_id);
+        const rows = db.listTransactions(user.user_id, { limit: null });
         const header = ['Date', 'Type', 'Description', 'Category', 'Account', 'Destination', 'Amount', 'Notes'];
         const lines = [header, ...rows.map((item) => [
           item.transaction_date, item.kind, item.description, item.category,

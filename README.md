@@ -20,6 +20,10 @@ This repository is an independent rebuild of the original Base44 prototype. It i
 - Uses random, hashed server-side sessions in `HttpOnly`, `SameSite=Lax` cookies.
 - Keeps every account and transaction query scoped to the authenticated user.
 - Supports light and dark themes and responsive layouts.
+- Adds a History tab with the current month and previous 11 months, including months with zero expenses.
+- Opens any selected month as a daily bar chart or line graph, with totals, category breakdowns, and spending insights.
+- Shows all-time cumulative spending and categories, including records older than 12 months.
+- Keeps older expenses in the ledger across month changes; reports and CSV exports read the complete history.
 
 ## Run locally
 
@@ -47,6 +51,13 @@ npm test
 ```
 
 The integration tests start the real HTTP server against temporary SQLite databases. They verify derived balances, insufficient-balance validation, registration validation, and isolation between two different users.
+History tests also cover more than 500 transactions, year boundaries, leap years, empty months, all-time totals, and persistence after reopening the database.
+
+## Expense history
+
+Sign in and select **History**. The default monthly analysis compares the current calendar month with the previous 11 months. Select a month card or chart point for its daily breakdown, or choose **Daily** and use the month picker to inspect an older month. Both monthly and daily charts can be displayed as bars or a line graph. **Overall** displays cumulative spending across every recorded month and an all-time category breakdown. Expand **View chart data** for exact values.
+
+History counts only expenses, so income and account transfers do not inflate spending totals. Zero-spending days and months are included. The daily average uses all calendar days in the selected month. The 12-month window is a display choice, not a retention limit: no automatic monthly deletion is performed. The local database and Railway's persistent database remain separate.
 
 ## Architecture
 
@@ -77,6 +88,7 @@ The central design decision is to treat balances as calculated values. An income
 | `POST` | `/api/auth/login` | Start a secure session |
 | `POST` | `/api/auth/logout` | End the current session |
 | `GET` | `/api/dashboard` | Return balances, summaries, categories, and insights |
+| `GET` | `/api/history` | Complete expense analysis; optional `asOf=YYYY-MM-DD` anchors the 12-month window and `month=YYYY-MM` selects daily details |
 | `GET/POST` | `/api/transactions` | List or create transactions |
 | `DELETE` | `/api/transactions/:id` | Delete one owned transaction |
 | `POST` | `/api/budget` | Set or remove a monthly budget |

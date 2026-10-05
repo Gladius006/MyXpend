@@ -67,6 +67,11 @@
     </header>
 
     <main class="dashboard">
+      <nav class="view-nav" aria-label="Main navigation">
+        <button id="dashboard-tab" class="view-tab active" type="button" data-app-view="dashboard" aria-current="page" aria-controls="dashboard-view">Dashboard</button>
+        <button id="history-tab" class="view-tab" type="button" data-app-view="history" aria-controls="history-view">History</button>
+      </nav>
+      <div id="dashboard-view">
       <section class="welcome-row">
         <div><p class="eyebrow">YOUR MONEY OVERVIEW</p><h1>Good to see you, <span id="user-name">there</span>.</h1><p class="muted">Every balance below is calculated from your transaction history.</p></div>
         <div class="button-row">
@@ -112,6 +117,47 @@
           </article>
         </aside>
       </section>
+      </div>
+
+      <section id="history-view" class="hidden" aria-labelledby="history-heading">
+        <div class="welcome-row history-heading">
+          <div><p class="eyebrow">YOUR SPENDING THROUGH TIME</p><h1 id="history-heading">Expense history</h1><p class="muted">Explore your last 12 months, open a month for daily details, or review all your spending.</p></div>
+          <a class="button ghost" href="/api/export.csv">Export CSV</a>
+        </div>
+        <div class="panel history-controls">
+          <label>Analysis<select id="history-mode"><option value="monthly">Monthly · last 12 months</option><option value="daily">Daily · selected month</option><option value="overall">Overall · all time</option></select></label>
+          <label id="history-month-field" class="hidden">Month<input id="history-month" type="month" required></label>
+          <label>Chart style<select id="history-chart-style"><option value="bar">Bar chart</option><option value="line">Line graph</option></select></label>
+        </div>
+        <p id="history-feedback" class="history-feedback" role="status" aria-live="polite"></p>
+        <button id="history-retry" class="button ghost hidden" type="button">Try again</button>
+        <div id="history-content" class="hidden">
+          <div id="history-summary" class="summary-grid" aria-label="History summary"></div>
+          <div class="history-analysis-grid">
+            <article class="panel history-chart-panel">
+              <div class="panel-heading"><div><p class="eyebrow" id="history-chart-eyebrow">MONTHLY COMPARISON</p><h2 id="history-chart-title">Expenses by month</h2></div></div>
+              <p id="history-chart-caption" class="muted small-text"></p>
+              <div id="history-chart" class="expense-chart"></div>
+              <details class="chart-data"><summary>View chart data</summary><div class="table-scroll"><table><thead><tr><th id="history-period-label" scope="col">Month</th><th id="history-amount-label" scope="col">Expenses</th><th scope="col">Entries</th></tr></thead><tbody id="history-chart-data"></tbody></table></div></details>
+            </article>
+            <aside class="side-column">
+              <article id="history-category-panel" class="panel hidden">
+                <div class="panel-heading"><div><p class="eyebrow">SPENDING BREAKDOWN</p><h2>Expenses by category</h2></div></div>
+                <div id="history-categories" class="history-categories"></div>
+              </article>
+              <article class="panel insight-panel">
+                <div class="panel-heading"><div><p class="eyebrow">AT A GLANCE</p><h2>Spending insights</h2></div></div>
+                <ul id="history-insights" class="insight-list"></ul>
+              </article>
+            </aside>
+          </div>
+          <article class="panel history-months-panel">
+            <div class="panel-heading"><div><p class="eyebrow">EXPLORE A MONTH</p><h2>Your last 12 months</h2></div></div>
+            <p class="muted small-text">Select any month to see its daily expenses. Months with no recorded expenses are included.</p>
+            <div id="history-months" class="history-month-grid"></div>
+          </article>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -143,6 +189,7 @@
     </form>
   </dialog>
 
-  <script src="/app.js?v=3" defer></script>
+  <script src="/history.js?v=1" defer></script>
+  <script src="/app.js?v=4" defer></script>
 </body>
 </html>

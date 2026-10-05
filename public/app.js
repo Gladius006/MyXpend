@@ -1,5 +1,5 @@
 const CATEGORIES = ['Food & Dining', 'Transport', 'Shopping', 'Entertainment', 'Bills & Utilities', 'Health', 'Education', 'Travel', 'Salary', 'Other'];
-const state = { user: null, dashboard: null, transactions: [], filters: { search: '', kind: '', category: '' } };
+const state = { user: null, dashboard: null, transactions: [], view: 'dashboard', filters: { search: '', kind: '', category: '' } };
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const money = (cents, digits = 2) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: digits, maximumFractionDigits: digits }).format((Number(cents) || 0) / 100);
@@ -36,12 +36,27 @@ function showApp(user) {
   $('#user-name').textContent = user.name.split(' ')[0];
   $('#auth-view').classList.add('hidden');
   $('#app-view').classList.remove('hidden');
+  setAppView(location.hash === '#history' ? 'history' : 'dashboard', false);
 }
 
 function showAuth() {
   state.user = null;
+  historyView.reset();
   $('#app-view').classList.add('hidden');
   $('#auth-view').classList.remove('hidden');
+}
+
+function setAppView(view, load = true) {
+  state.view = view;
+  $('#dashboard-view').classList.toggle('hidden', view !== 'dashboard');
+  $('#history-view').classList.toggle('hidden', view !== 'history');
+  $$('[data-app-view]').forEach((button) => {
+    const active = button.dataset.appView === view;
+    button.classList.toggle('active', active);
+    if (active) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
+  if (load && view === 'history') historyView.show();
 }
 
 function accountOptions(selected = '') {
@@ -110,6 +125,7 @@ async function refresh() {
   state.dashboard = dashboard;
   state.transactions = transactions.transactions;
   renderDashboard();
+  if (state.view === 'history' || historyView.hasLoaded) await historyView.refresh();
 }
 
 function openTransaction(kind) {
@@ -156,6 +172,13 @@ async function saveBudget() {
 }
 
 function setupEvents() {
+  $$('[data-app-view]').forEach((button) => button.addEventListener('click', () => {
+    setAppView(button.dataset.appView);
+    history.replaceState(null, '', `#${button.dataset.appView}`);
+  }));
+  window.addEventListener('hashchange', () => {
+    if (state.user) setAppView(location.hash === '#history' ? 'history' : 'dashboard');
+  });
   $$('[data-auth-tab]').forEach((button) => button.addEventListener('click', () => {
     const tab = button.dataset.authTab;
     $$('[data-auth-tab]').forEach((item) => { item.classList.toggle('active', item === button); item.setAttribute('aria-selected', String(item === button)); });
@@ -206,6 +229,8 @@ function setupEvents() {
     $('#theme-toggle').textContent = dark ? '☾' : '☼';
   });
 }
+
+const historyView = createHistoryView({ api, money, dateText, escapeHtml, localDate });
 
 async function init() {
   const theme = localStorage.getItem('myxpend-theme') || 'light';

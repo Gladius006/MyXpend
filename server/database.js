@@ -56,6 +56,13 @@ class MyXpendDatabase {
         monthly_limit_cents INTEGER NOT NULL CHECK(monthly_limit_cents >= 0),
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS admin_audit_events (
+        id INTEGER PRIMARY KEY,
+        admin_user_id INTEGER NOT NULL REFERENCES users(id),
+        target_user_id INTEGER REFERENCES users(id),
+        action TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
     `);
   }
 
@@ -113,7 +120,7 @@ class MyXpendDatabase {
 
   listAccounts(userId) {
     return this.db.prepare(`
-      SELECT a.id, a.name, a.type,
+      SELECT a.id, a.name, a.type, a.created_at,
         COALESCE(SUM(CASE
           WHEN t.kind = 'income' AND t.account_id = a.id THEN t.amount_cents
           WHEN t.kind = 'expense' AND t.account_id = a.id THEN -t.amount_cents
@@ -170,7 +177,7 @@ class MyXpendDatabase {
     `).get(id, userId);
   }
 
-  listTransactions(userId, { kind = '', category = '', search = '', from = '', to = '', limit = 500 } = {}) {
+  listTransactions(userId, { kind = '', category = '', search = '', from = '', to = '', limit = 500, offset = 0 } = {}) {
     const clauses = ['t.user_id = ?'];
     const params = [userId];
     if (kind) { clauses.push('t.kind = ?'); params.push(kind); }
@@ -181,7 +188,7 @@ class MyXpendDatabase {
     }
     if (from) { clauses.push('t.transaction_date >= ?'); params.push(from); }
     if (to) { clauses.push('t.transaction_date <= ?'); params.push(to); }
-    if (limit !== null) params.push(limit);
+    if (limit !== null) params.push(limit, offset);
     return this.db.prepare(`
       SELECT t.*, a.name AS account_name, ta.name AS target_account_name
       FROM transactions t
@@ -189,7 +196,7 @@ class MyXpendDatabase {
       LEFT JOIN accounts ta ON ta.id = t.target_account_id
       WHERE ${clauses.join(' AND ')}
       ORDER BY t.transaction_date DESC, t.id DESC
-      ${limit === null ? '' : 'LIMIT ?'}
+      ${limit === null ? '' : 'LIMIT ? OFFSET ?'}
     `).all(...params);
   }
 
@@ -244,7 +251,45 @@ class MyXpendDatabase {
   }
 
   getBudget(userId) {
-    return this.db.prepare('SELECT monthly_limit_cents FROM budgets WHERE user_id = ?').get(userId);
+    return this.db.prepare('SELECT monthly_limit_cents, updated_at FROM budgets WHERE user_id = ?').get(userId);
+  }
+
+  adminOverview() {
+    return this.db.prepare(`
+      SELECT (SELECT COUNT(*) FROM users) AS user_count,
+        COUNT(*) AS transaction_count,
+        COALESCE(SUM(CASE WHEN kind = 'expense' THEN amount_cents ELSE 0 END), 0) AS expense_cents,
+        COALESCE(SUM(CASE WHEN kind = 'income' THEN amount_cents ELSE 0 END), 0) AS income_cents
+      FROM transactions
+    `).get();
+  }
+
+  adminUsers({ search = '', limit = 25, offset = 0 } = {}) {
+    const pattern = `%${search}%`;
+    const total = this.db.prepare('SELECT COUNT(*) AS total FROM users WHERE name LIKE ? OR email LIKE ?').get(pattern, pattern).total;
+    const users = this.db.prepare(`
+      SELECT u.id, u.name, u.email, u.created_at,
+        COUNT(t.id) AS transaction_count,
+        COALESCE(SUM(CASE WHEN t.kind = 'expense' THEN t.amount_cents ELSE 0 END), 0) AS expense_cents,
+        MAX(t.created_at) AS last_transaction_at
+      FROM users u LEFT JOIN transactions t ON t.user_id = u.id
+      WHERE u.name LIKE ? OR u.email LIKE ?
+      GROUP BY u.id ORDER BY u.created_at DESC, u.id DESC LIMIT ? OFFSET ?
+    `).all(pattern, pattern, limit, offset);
+    return { users, total: Number(total), limit, offset };
+  }
+
+  adminTransactionCount(userId, { search = '', kind = '' } = {}) {
+    return Number(this.db.prepare(`
+      SELECT COUNT(*) AS total FROM transactions
+      WHERE user_id = ? AND (? = '' OR kind = ?)
+        AND (? = '' OR description LIKE ? OR notes LIKE ?)
+    `).get(userId, kind, kind, search, `%${search}%`, `%${search}%`).total);
+  }
+
+  recordAdminAccess(adminUserId, targetUserId, action) {
+    this.db.prepare('INSERT INTO admin_audit_events(admin_user_id, target_user_id, action) VALUES (?, ?, ?)')
+      .run(adminUserId, targetUserId, action);
   }
 }
 

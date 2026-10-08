@@ -1,5 +1,5 @@
-function createHistoryView({ api, money, dateText, escapeHtml, localDate }) {
-  const element = (id) => document.getElementById(id);
+function createHistoryView({ api, money, dateText, escapeHtml, localDate, idPrefix = '', endpoint = () => '/api/history' }) {
+  const element = (id) => document.getElementById(`${idPrefix}${id}`);
   let data = null;
   let selectedMonth = '';
   let mode = 'monthly';
@@ -18,7 +18,7 @@ function createHistoryView({ api, money, dateText, escapeHtml, localDate }) {
     element('history-retry').classList.add('hidden');
     element('history-content').classList.add('hidden');
     try {
-      const result = await api(`/api/history?${new URLSearchParams({ asOf: localDate(), month: selectedMonth })}`);
+      const result = await api(`${endpoint()}?${new URLSearchParams({ asOf: localDate(), month: selectedMonth })}`);
       if (id !== requestId) return;
       data = result;
       element('history-feedback').textContent = '';

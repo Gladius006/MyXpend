@@ -190,8 +190,38 @@ function serveStatic(req, res, pathname) {
   return true;
 }
 
-function createApp({ dbPath = DEFAULT_DB } = {}) {
+function createApp({ dbPath = DEFAULT_DB, adminEmail = process.env.MYXPEND_ADMIN_EMAIL || '' } = {}) {
   const db = new MyXpendDatabase(dbPath);
+  // Resolve an existing account once at startup. Registration never grants admin access.
+  const ownerEmail = String(adminEmail).trim().toLowerCase();
+  const adminUser = ownerEmail ? db.getUserByEmail(ownerEmail) : null;
+  if (ownerEmail && !adminUser) {
+    db.close();
+    throw new Error('MYXPEND_ADMIN_EMAIL must identify an existing MyXpend account');
+  }
+  const isAdmin = (id) => Boolean(adminUser && adminUser.id === id);
+  const publicUser = (user) => ({ ...user, is_admin: isAdmin(user.id) });
+  function pagination(url) {
+    const limit = Number(url.searchParams.get('limit') || 25);
+    const offset = Number(url.searchParams.get('offset') || 0);
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100 || !Number.isSafeInteger(offset) || offset < 0) {
+      throw Object.assign(new Error('Use a limit from 1 to 100 and a non-negative offset'), { status: 422 });
+    }
+    const search = (url.searchParams.get('search') || '').trim();
+    if (search.length > 100) throw Object.assign(new Error('Keep searches under 100 characters'), { status: 422 });
+    return { limit, offset, search };
+  }
+  function historyParams(url) {
+    const asOf = url.searchParams.get('asOf') || localDateString();
+    const month = url.searchParams.get('month') || asOf.slice(0, 7);
+    if (!isDate(asOf) || Number(asOf.slice(0, 4)) < 2 || Number(asOf.slice(0, 4)) > 9998) {
+      throw Object.assign(new Error('Choose a valid history date'), { status: 422 });
+    }
+    if (!isDate(`${month}-01`) || Number(month.slice(0, 4)) < 1 || Number(month.slice(0, 4)) > 9998) {
+      throw Object.assign(new Error('Choose a valid month in YYYY-MM format'), { status: 422 });
+    }
+    return { asOf, month };
+  }
   const server = http.createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -202,6 +232,39 @@ function createApp({ dbPath = DEFAULT_DB } = {}) {
     try {
       if (req.method === 'GET' && pathname === '/api/health') {
         return json(res, 200, { status: 'ok' });
+      }
+      if (pathname === '/api/admin' || pathname.startsWith('/api/admin/')) {
+        const actor = requireUser(req, res, db); if (!actor) return;
+        if (!isAdmin(actor.user_id)) return errorResponse(res, 403, 'Admin access is required');
+        if (req.method !== 'GET') return errorResponse(res, 405, 'The admin dashboard provides read-only access');
+        if (pathname === '/api/admin/overview') return json(res, 200, { summary: db.adminOverview() });
+        if (pathname === '/api/admin/users') return json(res, 200, db.adminUsers(pagination(url)));
+        const match = pathname.match(/^\/api\/admin\/users\/(\d+)(?:\/(transactions|history|export))?$/);
+        if (!match) return errorResponse(res, 404, 'Admin route not found');
+        const userId = Number(match[1]);
+        const target = Number.isSafeInteger(userId) ? db.getUserById(userId) : null;
+        if (!target) return errorResponse(res, 404, 'User not found');
+        const action = match[2] || 'profile';
+        if (action === 'transactions') {
+          const filters = { ...pagination(url), kind: url.searchParams.get('kind') || '' };
+          if (filters.kind && !['expense', 'income', 'transfer'].includes(filters.kind)) return errorResponse(res, 422, 'Choose a valid transaction type');
+          const result = { transactions: db.listTransactions(userId, filters), total: db.adminTransactionCount(userId, filters), limit: filters.limit, offset: filters.offset };
+          db.recordAdminAccess(actor.user_id, userId, action);
+          return json(res, 200, result);
+        }
+        if (action === 'history') {
+          const result = expenseHistory(db, userId, historyParams(url));
+          db.recordAdminAccess(actor.user_id, userId, action);
+          return json(res, 200, result);
+        }
+        const profile = { user: publicUser(target), ...dashboard(db, userId), budget: db.getBudget(userId), transaction_count: db.adminTransactionCount(userId) };
+        if (action === 'export') {
+          const result = { exported_at: new Date().toISOString(), ...profile, transactions: db.listTransactions(userId, { limit: null }), history: expenseHistory(db, userId, historyParams(url)) };
+          db.recordAdminAccess(actor.user_id, userId, action);
+          return json(res, 200, result, { 'Content-Disposition': `attachment; filename="myxpend-user-${userId}.json"` });
+        }
+        db.recordAdminAccess(actor.user_id, userId, action);
+        return json(res, 200, profile);
       }
       if (req.method === 'POST' && pathname === '/api/auth/register') {
         const body = await readJson(req);
@@ -218,7 +281,7 @@ function createApp({ dbPath = DEFAULT_DB } = {}) {
         const token = crypto.randomBytes(32).toString('base64url');
         const expires = new Date(Date.now() + 14 * 86400_000).toISOString();
         db.createSession(tokenHash(token), user.id, expires);
-        return json(res, 201, { user }, { 'Set-Cookie': sessionCookie(token) });
+        return json(res, 201, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(token) });
       }
       if (req.method === 'POST' && pathname === '/api/auth/login') {
         const body = await readJson(req);
@@ -228,7 +291,7 @@ function createApp({ dbPath = DEFAULT_DB } = {}) {
         }
         const token = crypto.randomBytes(32).toString('base64url');
         db.createSession(tokenHash(token), user.id, new Date(Date.now() + 14 * 86400_000).toISOString());
-        return json(res, 200, { user: db.getUserById(user.id) }, { 'Set-Cookie': sessionCookie(token) });
+        return json(res, 200, { user: publicUser(db.getUserById(user.id)) }, { 'Set-Cookie': sessionCookie(token) });
       }
       if (req.method === 'POST' && pathname === '/api/auth/logout') {
         const token = parseCookies(req).myxpend_session;
@@ -237,7 +300,7 @@ function createApp({ dbPath = DEFAULT_DB } = {}) {
       }
       if (req.method === 'GET' && pathname === '/api/me') {
         const user = requireUser(req, res, db); if (!user) return;
-        return json(res, 200, { user: { id: user.user_id, name: user.name, email: user.email } });
+        return json(res, 200, { user: publicUser(db.getUserById(user.user_id)) });
       }
       if (req.method === 'GET' && pathname === '/api/dashboard') {
         const user = requireUser(req, res, db); if (!user) return;
@@ -245,15 +308,7 @@ function createApp({ dbPath = DEFAULT_DB } = {}) {
       }
       if (req.method === 'GET' && pathname === '/api/history') {
         const user = requireUser(req, res, db); if (!user) return;
-        const asOf = url.searchParams.get('asOf') || localDateString();
-        const month = url.searchParams.get('month') || asOf.slice(0, 7);
-        if (!isDate(asOf) || Number(asOf.slice(0, 4)) < 2 || Number(asOf.slice(0, 4)) > 9998) {
-          return errorResponse(res, 422, 'Choose a valid history date');
-        }
-        if (!isDate(`${month}-01`) || Number(month.slice(0, 4)) < 1 || Number(month.slice(0, 4)) > 9998) {
-          return errorResponse(res, 422, 'Choose a valid month in YYYY-MM format');
-        }
-        return json(res, 200, expenseHistory(db, user.user_id, { asOf, month }));
+        return json(res, 200, expenseHistory(db, user.user_id, historyParams(url)));
       }
       if (req.method === 'GET' && pathname === '/api/accounts') {
         const user = requireUser(req, res, db); if (!user) return;
@@ -303,7 +358,7 @@ function createApp({ dbPath = DEFAULT_DB } = {}) {
       if (serveStatic(req, res, pathname)) return;
       serveStatic(req, res, '/');
     } catch (error) {
-      console.error(error);
+      if (!error.status) console.error(error);
       errorResponse(res, error.status || 500, error.status ? error.message : 'Something went wrong');
     }
   });

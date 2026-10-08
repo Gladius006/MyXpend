@@ -48,6 +48,15 @@ It should return:
 {"status":"ok"}
 ```
 
+## 5. Enable the owner admin dashboard
+
+1. Create your owner account on the live site first.
+2. Open the MyXpend service's **Variables** tab in Railway.
+3. Add `MYXPEND_ADMIN_EMAIL` with the exact email of that existing account. Keep this deployment setting out of public source code.
+4. Deploy the variable change, then sign in to MyXpend and select **Admin**.
+
+Only this account receives read-only access to the user directory, financial records, graphs, and JSON exports. Passwords and session credentials are never exposed. No admin access is enabled without the setting. An email that does not already exist prevents startup, so verify the account before changing the variable. Remove the variable and redeploy to revoke admin access.
+
 ## Deployment checks
 
 - Register a test user.

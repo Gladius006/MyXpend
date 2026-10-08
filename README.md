@@ -59,6 +59,14 @@ Sign in and select **History**. The default monthly analysis compares the curren
 
 History counts only expenses, so income and account transfers do not inflate spending totals. Zero-spending days and months are included. The daily average uses all calendar days in the selected month. The 12-month window is a display choice, not a retention limit: no automatic monthly deletion is performed. The local database and Railway's persistent database remain separate.
 
+## Admin dashboard
+
+Configure `MYXPEND_ADMIN_EMAIL` on the server to identify an **existing** owner account, then restart or redeploy. Sign in with that account and select **Admin**. The email is resolved to a user ID at startup; registration and client-supplied fields cannot grant admin access. If the configured account does not exist, startup fails rather than reserving admin rights for a later registration. Without this environment variable, admin access is disabled for everyone.
+
+The dashboard provides a searchable, paginated user directory, site totals, profile and registration details, Bank/Cash balances, monthly budgets, every transaction and note through pagination, monthly/daily/overall graphs, and a complete per-user JSON export. It is read-only. Passwords, password hashes, and session tokens are never returned. Detailed record access and exports are logged in `admin_audit_events` with the administrator, target user, action, and timestamp. Only the server operator can change the configured administrator; there is no browser-accessible promotion endpoint.
+
+Admin API routes are `GET /api/admin/overview`, `/api/admin/users`, `/api/admin/users/:id`, and `/api/admin/users/:id/{transactions,history,export}`. Listing endpoints support `limit` (1–100), `offset`, and `search`; transaction listing also supports `kind`. History accepts the same date parameters as personal history. Every admin request requires an active authenticated admin session.
+
 ## Architecture
 
 ```text

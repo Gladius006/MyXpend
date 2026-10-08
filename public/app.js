@@ -36,20 +36,24 @@ function showApp(user) {
   $('#user-name').textContent = user.name.split(' ')[0];
   $('#auth-view').classList.add('hidden');
   $('#app-view').classList.remove('hidden');
-  setAppView(location.hash === '#history' ? 'history' : 'dashboard', false);
+  $('#admin-tab').classList.toggle('hidden', !user.is_admin);
+  setAppView(location.hash === '#admin' && user.is_admin ? 'admin' : location.hash === '#history' ? 'history' : 'dashboard', false);
 }
 
 function showAuth() {
   state.user = null;
   historyView.reset();
+  adminView.reset();
   $('#app-view').classList.add('hidden');
   $('#auth-view').classList.remove('hidden');
 }
 
 function setAppView(view, load = true) {
+  if (view === 'admin' && !state.user?.is_admin) view = 'dashboard';
   state.view = view;
   $('#dashboard-view').classList.toggle('hidden', view !== 'dashboard');
   $('#history-view').classList.toggle('hidden', view !== 'history');
+  $('#admin-view').classList.toggle('hidden', view !== 'admin');
   $$('[data-app-view]').forEach((button) => {
     const active = button.dataset.appView === view;
     button.classList.toggle('active', active);
@@ -57,6 +61,7 @@ function setAppView(view, load = true) {
     else button.removeAttribute('aria-current');
   });
   if (load && view === 'history') historyView.show();
+  if (load && view === 'admin') adminView.show();
 }
 
 function accountOptions(selected = '') {
@@ -66,7 +71,7 @@ function accountOptions(selected = '') {
 function escapeHtml(value) {
   const node = document.createElement('span');
   node.textContent = String(value ?? '');
-  return node.innerHTML;
+  return node.innerHTML.replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
 
 function renderDashboard() {
@@ -126,6 +131,7 @@ async function refresh() {
   state.transactions = transactions.transactions;
   renderDashboard();
   if (state.view === 'history' || historyView.hasLoaded) await historyView.refresh();
+  if (state.view === 'admin') await adminView.show();
 }
 
 function openTransaction(kind) {
@@ -177,7 +183,7 @@ function setupEvents() {
     history.replaceState(null, '', `#${button.dataset.appView}`);
   }));
   window.addEventListener('hashchange', () => {
-    if (state.user) setAppView(location.hash === '#history' ? 'history' : 'dashboard');
+    if (state.user) setAppView(location.hash === '#admin' ? 'admin' : location.hash === '#history' ? 'history' : 'dashboard');
   });
   $$('[data-auth-tab]').forEach((button) => button.addEventListener('click', () => {
     const tab = button.dataset.authTab;
@@ -231,6 +237,7 @@ function setupEvents() {
 }
 
 const historyView = createHistoryView({ api, money, dateText, escapeHtml, localDate });
+const adminView = createAdminView({ api, money, dateText, escapeHtml, localDate });
 
 async function init() {
   const theme = localStorage.getItem('myxpend-theme') || 'light';

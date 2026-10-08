@@ -34,6 +34,24 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); min-height: 100vh; }
+
+.admin-users-panel, .admin-ledger-panel { margin-bottom: 1.5rem; min-width: 0; }
+.admin-search-form { display: flex; align-items: end; flex-wrap: wrap; gap: .75rem; margin-bottom: 1rem; }
+.admin-search-form .search-field { flex: 1 1 230px; }
+.admin-table { width: 100%; border-collapse: collapse; text-align: left; font-size: .88rem; }
+.admin-table th, .admin-table td { padding: .9rem .75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.admin-table th { white-space: nowrap; color: var(--muted); font-size: .78rem; }
+.admin-table td { min-width: 100px; }
+.admin-user-link { border: 0; background: transparent; color: var(--brand); font-weight: 800; padding: .2rem 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+.admin-user-link:hover, .admin-user-link[aria-pressed="true"] { text-decoration: underline; }
+.admin-email, .admin-notes { display: block; color: var(--muted); margin-top: .4rem; overflow-wrap: anywhere; min-width: 160px; max-width: 340px; }
+.admin-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; padding-top: 1rem; }
+.admin-pagination p { margin: 0; }
+.admin-profile-heading { margin-top: 2rem; }
+.admin-profile-heading h2 { font-size: 1.8rem; overflow-wrap: anywhere; }
+.admin-profile-heading p { margin: .5rem 0 0; overflow-wrap: anywhere; }
+.admin-history { margin-top: 2rem; min-width: 0; }
+#admin-profile, #admin-view { min-width: 0; }
 button, input, select, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
